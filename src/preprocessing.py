@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Iterable
 
+TEMP_CACHE_DIR = Path(os.environ.get("TMPDIR", "/tmp")) / "pkk-stunting-fcm-cache"
+os.environ.setdefault("MPLCONFIGDIR", str(TEMP_CACHE_DIR / "matplotlib"))
+os.environ.setdefault("XDG_CACHE_HOME", str(TEMP_CACHE_DIR / "xdg"))
+
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -20,6 +28,9 @@ DATA_RAW = PROJECT_ROOT / "data" / "raw"
 DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
 
 FAMILY_INDICATORS_PATH = DATA_INTERIM / "family_stunting_indicators.csv"
+MATERNAL_AGE_PATH = DATA_RAW / "maternal_age.csv"
+STUNTING_KNOWLEDGE_PATH = DATA_RAW / "stunting_knowledge.csv"
+STUNTING_PREVALENCE_PATH = DATA_RAW / "stunting_prevalence.csv"
 WATER_ACCESS_PATH = DATA_RAW / "water_access.csv"
 SANITATION_ACCESS_PATH = DATA_RAW / "sanitation_access.csv"
 
@@ -52,11 +63,22 @@ ZSCORE_COLUMNS: list[str] = [
     "sanitation_unimproved_z",
 ]
 
-FAMILY_KEEP_COLUMNS = [
+FAMILY_CORE_COLUMNS = [
     "province_name",
     "maternal_age_risk_pct",
     "low_knowledge_pct",
     "stunting_prevalence_pct",
+]
+
+FAMILY_OUTPUT_COLUMNS = [
+    *FAMILY_CORE_COLUMNS,
+    "maternal_age_under21_pct",
+    "maternal_age_21_39_pct",
+    "maternal_age_over40_pct",
+    "knowledge_attitude_high_pct",
+    "severely_stunting_pct",
+    "stunting_pct",
+    "normal_height_for_age_pct",
 ]
 
 NATIONAL_AGGREGATE_LABEL = "INDONESIA"
@@ -91,6 +113,12 @@ def harmonize_province_names(df: pd.DataFrame, column: str = "province_name") ->
     """Strip whitespace and uppercase province names for consistent merging."""
     df = df.copy()
     df[column] = df[column].astype(str).str.strip().str.upper()
+    df[column] = df[column].replace(
+        {
+            "KEP.BANGKA BELITUNG": "BANGKA BELITUNG",
+            "KEP. BANGKA BELITUNG": "BANGKA BELITUNG",
+        }
+    )
     return df
 
 def normalize_decimal_format(df: pd.DataFrame, exclude: Iterable[str] = ("province_name",)) -> pd.DataFrame:
@@ -113,12 +141,64 @@ def filter_national_aggregate(df: pd.DataFrame, column: str = "province_name") -
         logger.info("Removed %d national aggregate row(s) ('%s')", removed, NATIONAL_AGGREGATE_LABEL)
     return df.loc[mask].reset_index(drop=True)
 
-def load_family_indicators() -> pd.DataFrame:
-    """Load and prepare family stunting indicators."""
-    df = load_csv(FAMILY_INDICATORS_PATH, usecols=FAMILY_KEEP_COLUMNS)
+def load_maternal_age() -> pd.DataFrame:
+    """Load maternal-age table and derive the age-risk feature."""
+    df = load_csv(MATERNAL_AGE_PATH)
     df = harmonize_province_names(df)
     df = normalize_decimal_format(df)
-    return filter_national_aggregate(df)
+    df["maternal_age_risk_pct"] = (
+        df["maternal_age_under21_pct"] + df["maternal_age_over40_pct"]
+    ).round(1)
+    return df
+
+def load_stunting_knowledge() -> pd.DataFrame:
+    """Load knowledge table and invert the protective high-knowledge measure."""
+    df = load_csv(STUNTING_KNOWLEDGE_PATH)
+    df = harmonize_province_names(df)
+    df = normalize_decimal_format(df)
+    df["low_knowledge_pct"] = (100 - df["knowledge_attitude_high_pct"]).round(1)
+    return df
+
+def load_stunting_prevalence() -> pd.DataFrame:
+    """Load TB/U status table and derive total stunting prevalence."""
+    df = load_csv(STUNTING_PREVALENCE_PATH)
+    df = harmonize_province_names(df)
+    df = normalize_decimal_format(df)
+    df["stunting_prevalence_pct"] = (
+        df["severely_stunting_pct"] + df["stunting_pct"]
+    ).round(1)
+    return df
+
+def build_family_indicators() -> pd.DataFrame:
+    """Build family and external-validation indicators from raw SSGI tables."""
+    maternal_df = load_maternal_age()
+    knowledge_df = load_stunting_knowledge()
+    prevalence_df = load_stunting_prevalence()
+
+    merged = maternal_df.merge(
+        knowledge_df[["province_name", "knowledge_attitude_high_pct", "low_knowledge_pct"]],
+        on="province_name",
+        how="inner",
+        validate="one_to_one",
+    )
+    merged = merged.merge(
+        prevalence_df[
+            [
+                "province_name",
+                "severely_stunting_pct",
+                "stunting_pct",
+                "normal_height_for_age_pct",
+                "stunting_prevalence_pct",
+            ]
+        ],
+        on="province_name",
+        how="inner",
+        validate="one_to_one",
+    )
+
+    merged = merged[FAMILY_OUTPUT_COLUMNS].sort_values("province_name").reset_index(drop=True)
+    export_csv(merged, FAMILY_INDICATORS_PATH)
+    return filter_national_aggregate(merged)
 
 def load_water_access() -> pd.DataFrame:
     """Load water access data and derive combined no/unimproved feature."""
@@ -350,7 +430,7 @@ def run_preprocessing_pipeline() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Execute the full preprocessing workflow and return both output tables."""
     logger.info("Starting preprocessing pipeline")
 
-    family_df = load_family_indicators()
+    family_df = build_family_indicators()
     water_df = load_water_access()
     sanitation_df = load_sanitation_access()
     merged_df = merge_datasets(family_df, water_df, sanitation_df)
