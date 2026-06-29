@@ -1,8 +1,8 @@
-province_name,membership_cluster_1,membership_cluster_2,maximum_membership,second_highest_membership,membership_margin,crisp_cluster,cluster_label,membership_status,stunting_prevalence_pct
-SULAWESI SELATAN,0.502045,0.497955,0.502045,0.497955,0.004089,1,Profil faktor risiko relatif lebih rendah,Ambigu tinggi,23.2
-PAPUA,0.508069,0.491931,0.508069,0.491931,0.016138,1,Profil faktor risiko relatif lebih rendah,Ambigu tinggi,24.7
-SULAWESI UTARA,0.440919,0.559081,0.559081,0.440919,0.118163,2,Profil faktor risiko relatif lebih tinggi,Ambigu tinggi,20.8
-KALIMANTAN UTARA,0.658784,0.341216,0.658784,0.341216,0.317569,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,17.6
-JAWA TENGAH,0.665725,0.334275,0.665725,0.334275,0.331451,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,17.0
-SUMATERA BARAT,0.672662,0.327338,0.672662,0.327338,0.345325,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,24.9
-KALIMANTAN SELATAN,0.711392,0.288608,0.711392,0.288608,0.422783,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,22.9
+province_name,membership_cluster_1,membership_cluster_2,maximum_membership,second_highest_membership,membership_margin,crisp_cluster,risk_rank,cluster_label,membership_status,stunting_prevalence_pct
+SULAWESI SELATAN,0.502045,0.497955,0.502045,0.497955,0.0040899999999999825,1,1,Profil faktor risiko relatif lebih rendah,Ambigu tinggi,23.2
+PAPUA,0.508069,0.491931,0.508069,0.491931,0.016137999999999986,1,1,Profil faktor risiko relatif lebih rendah,Ambigu tinggi,24.7
+SULAWESI UTARA,0.440919,0.559081,0.559081,0.440919,0.11816200000000004,2,2,Profil faktor risiko relatif lebih tinggi,Ambigu tinggi,20.8
+KALIMANTAN UTARA,0.658784,0.341216,0.658784,0.341216,0.317568,1,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,17.6
+JAWA TENGAH,0.665725,0.334275,0.665725,0.334275,0.33145,1,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,17.0
+SUMATERA BARAT,0.672662,0.327338,0.672662,0.327338,0.34532399999999996,1,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,24.9
+KALIMANTAN SELATAN,0.711392,0.288608,0.711392,0.288608,0.42278400000000005,1,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,22.9

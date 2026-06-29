@@ -1,37 +1,37 @@
-province_name,membership_cluster_1,membership_cluster_2,maximum_membership,second_highest_membership,membership_margin,crisp_cluster,cluster_label,membership_status,stunting_prevalence_pct
-SULAWESI SELATAN,0.502045,0.497955,0.502045,0.497955,0.004089,1,Profil faktor risiko relatif lebih rendah,Ambigu tinggi,23.2
-PAPUA,0.508069,0.491931,0.508069,0.491931,0.016138,1,Profil faktor risiko relatif lebih rendah,Ambigu tinggi,24.7
-KALIMANTAN UTARA,0.658784,0.341216,0.658784,0.341216,0.317569,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,17.6
-JAWA TENGAH,0.665725,0.334275,0.665725,0.334275,0.331451,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,17.0
-SUMATERA BARAT,0.672662,0.327338,0.672662,0.327338,0.345325,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,24.9
-KALIMANTAN SELATAN,0.711392,0.288608,0.711392,0.288608,0.422783,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,22.9
-BANGKA BELITUNG,0.767231,0.232769,0.767231,0.232769,0.534462,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,20.1
-NUSA TENGGARA BARAT,0.773541,0.226459,0.773541,0.226459,0.547082,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,29.8
-JAWA BARAT,0.81766,0.18234,0.81766,0.18234,0.63532,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,15.9
-BALI,0.942536,0.057464,0.942536,0.057464,0.885071,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,8.6
-KEPULAUAN RIAU,0.96664,0.03336,0.96664,0.03336,0.93328,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,15.0
-DI YOGYAKARTA,0.967097,0.032903,0.967097,0.032903,0.934194,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,17.4
-DKI JAKARTA,0.970648,0.029352,0.970648,0.029352,0.941295,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,17.2
-BENGKULU,0.97536,0.02464,0.97536,0.02464,0.950719,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,18.8
-LAMPUNG,0.976376,0.023624,0.976376,0.023624,0.952752,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,15.9
-ACEH,0.986404,0.013596,0.986404,0.013596,0.972807,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,28.6
-SUMATERA SELATAN,0.989698,0.010302,0.989698,0.010302,0.979396,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,15.8
-JAWA TIMUR,0.990129,0.009871,0.990129,0.009871,0.980257,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,14.7
-SUMATERA UTARA,0.991365,0.008635,0.991365,0.008635,0.98273,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,22.0
-KALIMANTAN TIMUR,0.991441,0.008559,0.991441,0.008559,0.982883,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,22.3
-BANTEN,0.993756,0.006244,0.993756,0.006244,0.987512,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,21.1
-RIAU,0.993858,0.006142,0.993858,0.006142,0.987716,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,20.1
-JAMBI,0.998751,0.001249,0.998751,0.001249,0.997503,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,17.1
-SULAWESI UTARA,0.440919,0.559081,0.559081,0.440919,0.118163,2,Profil faktor risiko relatif lebih tinggi,Ambigu tinggi,20.8
-KALIMANTAN TENGAH,0.211278,0.788722,0.788722,0.211278,0.577444,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,22.1
-NUSA TENGGARA TIMUR,0.200314,0.799686,0.799686,0.200314,0.599371,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,37.0
-MALUKU,0.16692,0.83308,0.83308,0.16692,0.66616,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,28.3
-PAPUA SELATAN,0.159583,0.840417,0.840417,0.159583,0.680834,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,25.7
-SULAWESI TENGGARA,0.126263,0.873737,0.873737,0.126263,0.747474,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,26.1
-SULAWESI TENGAH,0.106104,0.893896,0.893896,0.106104,0.787791,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,26.1
-KALIMANTAN BARAT,0.09474,0.90526,0.90526,0.09474,0.81052,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,26.8
-PAPUA BARAT,0.082145,0.917855,0.917855,0.082145,0.835709,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,24.7
-PAPUA BARAT DAYA,0.062377,0.937623,0.937623,0.062377,0.875245,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,30.5
-MALUKU UTARA,0.041998,0.958002,0.958002,0.041998,0.916003,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,23.2
-GORONTALO,0.033239,0.966761,0.966761,0.033239,0.933522,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,23.9
-SULAWESI BARAT,0.00724,0.99276,0.99276,0.00724,0.98552,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,35.4
+province_name,membership_cluster_1,membership_cluster_2,maximum_membership,second_highest_membership,membership_margin,crisp_cluster,risk_rank,cluster_label,membership_status,stunting_prevalence_pct
+SULAWESI SELATAN,0.502045,0.497955,0.502045,0.497955,0.0040899999999999825,1,1,Profil faktor risiko relatif lebih rendah,Ambigu tinggi,23.2
+PAPUA,0.508069,0.491931,0.508069,0.491931,0.016137999999999986,1,1,Profil faktor risiko relatif lebih rendah,Ambigu tinggi,24.7
+KALIMANTAN UTARA,0.658784,0.341216,0.658784,0.341216,0.317568,1,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,17.6
+JAWA TENGAH,0.665725,0.334275,0.665725,0.334275,0.33145,1,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,17.0
+SUMATERA BARAT,0.672662,0.327338,0.672662,0.327338,0.34532399999999996,1,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,24.9
+KALIMANTAN SELATAN,0.711392,0.288608,0.711392,0.288608,0.42278400000000005,1,1,Profil faktor risiko relatif lebih rendah,Transisi moderat,22.9
+BANGKA BELITUNG,0.767231,0.232769,0.767231,0.232769,0.534462,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,20.1
+NUSA TENGGARA BARAT,0.773541,0.226459,0.773541,0.226459,0.5470820000000001,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,29.8
+JAWA BARAT,0.81766,0.18234,0.81766,0.18234,0.6353200000000001,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,15.9
+BALI,0.942536,0.057464,0.942536,0.057464,0.8850720000000001,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,8.6
+KEPULAUAN RIAU,0.96664,0.03336,0.96664,0.03336,0.9332800000000001,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,15.0
+DI YOGYAKARTA,0.967097,0.032903,0.967097,0.032903,0.934194,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,17.4
+DKI JAKARTA,0.970648,0.029352,0.970648,0.029352,0.9412959999999999,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,17.2
+BENGKULU,0.97536,0.02464,0.97536,0.02464,0.95072,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,18.8
+LAMPUNG,0.976376,0.023624,0.976376,0.023624,0.952752,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,15.9
+ACEH,0.986404,0.013596,0.986404,0.013596,0.9728079999999999,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,28.6
+SUMATERA SELATAN,0.989698,0.010302,0.989698,0.010302,0.9793959999999999,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,15.8
+JAWA TIMUR,0.990129,0.009871,0.990129,0.009871,0.9802580000000001,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,14.7
+SUMATERA UTARA,0.991365,0.008635,0.991365,0.008635,0.9827300000000001,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,22.0
+KALIMANTAN TIMUR,0.991441,0.008559,0.991441,0.008559,0.982882,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,22.3
+BANTEN,0.993756,0.006244,0.993756,0.006244,0.987512,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,21.1
+RIAU,0.993858,0.006142,0.993858,0.006142,0.987716,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,20.1
+JAMBI,0.998751,0.001249,0.998751,0.001249,0.9975020000000001,1,1,Profil faktor risiko relatif lebih rendah,Keanggotaan kuat,17.1
+SULAWESI UTARA,0.440919,0.559081,0.559081,0.440919,0.11816200000000004,2,2,Profil faktor risiko relatif lebih tinggi,Ambigu tinggi,20.8
+KALIMANTAN TENGAH,0.211278,0.788722,0.788722,0.211278,0.5774440000000001,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,22.1
+NUSA TENGGARA TIMUR,0.200314,0.799686,0.799686,0.200314,0.599372,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,37.0
+MALUKU,0.16692,0.83308,0.83308,0.16692,0.6661600000000001,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,28.3
+PAPUA SELATAN,0.159583,0.840417,0.840417,0.159583,0.6808339999999999,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,25.7
+SULAWESI TENGGARA,0.126263,0.873737,0.873737,0.126263,0.747474,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,26.1
+SULAWESI TENGAH,0.106104,0.893896,0.893896,0.106104,0.787792,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,26.1
+KALIMANTAN BARAT,0.09474,0.90526,0.90526,0.09474,0.8105199999999999,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,26.8
+PAPUA BARAT,0.082145,0.917855,0.917855,0.082145,0.83571,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,24.7
+PAPUA BARAT DAYA,0.062377,0.937623,0.937623,0.062377,0.875246,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,30.5
+MALUKU UTARA,0.041998,0.958002,0.958002,0.041998,0.916004,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,23.2
+GORONTALO,0.033239,0.966761,0.966761,0.033239,0.933522,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,23.9
+SULAWESI BARAT,0.00724,0.99276,0.99276,0.00724,0.98552,2,2,Profil faktor risiko relatif lebih tinggi,Keanggotaan kuat,35.4

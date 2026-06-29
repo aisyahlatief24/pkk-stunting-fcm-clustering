@@ -1,268 +1,281 @@
-# Clustering Provinsi Indonesia Berdasarkan Faktor Risiko Stunting menggunakan Fuzzy C-Means
+# Clustering Provinsi Indonesia Berdasarkan Faktor Risiko Stunting dengan Fuzzy C-Means
 
-> Analisis klasterisasi 36 provinsi Indonesia menggunakan metode **Fuzzy C-Means (FCM)** terhadap faktor keluarga, akses air minum, dan sanitasi berdasarkan data **Survei Status Gizi Indonesia (SSGI) 2024**.
+Analisis ini mengelompokkan provinsi di Indonesia berdasarkan kemiripan profil faktor risiko stunting menggunakan **Fuzzy C-Means (FCM)**. Input clustering adalah enam indikator risiko yang telah distandardisasi. Prevalensi stunting tidak digunakan untuk membentuk klaster; variabel tersebut hanya dipakai setelah clustering sebagai validasi eksternal.
 
----
+## Objective Penelitian
 
-## Daftar Isi
+Tujuan utama penelitian adalah membentuk klaster provinsi berdasarkan faktor keluarga, akses air minum, dan sanitasi, kemudian menganalisis karakteristik centroid, faktor yang paling menonjol, tingkat keanggotaan fuzzy, persebaran spasial, dan hubungan post-hoc dengan prevalensi stunting.
 
-1. [Deskripsi Proyek](#deskripsi-proyek)
-2. [Fitur Input Model](#fitur-input-model)
-3. [Struktur Direktori](#struktur-direktori)
-4. [Alur Menjalankan Proyek](#alur-menjalankan-proyek)
-5. [Hasil dan Temuan](#hasil-dan-temuan)
-6. [Persyaratan](#persyaratan)
-7. [Catatan Metodologi](#catatan-metodologi)
+Secara rinci, pipeline ini:
 
----
+1. membentuk klaster dari enam indikator z-score;
+2. menguji `c = 2, 3, 4, 5` dan `m = 1.5, 1.75, 2.0, 2.25, 2.5`;
+3. memilih konfigurasi paling valid dan stabil tanpa memaksakan jumlah klaster tertentu;
+4. menginterpretasi centroid dan dimensi risiko;
+5. mengidentifikasi membership kuat, transisi, dan ambigu;
+6. membuat visualisasi dan peta;
+7. membandingkan profil klaster dengan prevalensi stunting sebagai validasi eksternal nonkausal.
 
-## Deskripsi Proyek
+Hasil data saat ini memilih **`c=2, m=1.5`**. Nilai ini adalah hasil ranking dari data dan eksperimen saat ini, bukan nilai hardcoded. Pipeline tetap dirancang berjalan apabila konfigurasi terbaik berubah menjadi `c=3`, `c=4`, atau `c=5`.
 
-Penelitian ini mengklasterisasi 36 provinsi Indonesia berdasarkan enam indikator faktor risiko stunting (bukan berdasarkan prevalensi stuntingnya). Clustering dilakukan menggunakan algoritma **Fuzzy C-Means (FCM)** untuk menghasilkan pengelompokan *soft* yang mampu menangkap provinsi dengan profil risiko yang ambigu atau berada di perbatasan antar kelompok.
+## Struktur Folder
 
-Prevalensi stunting **tidak** digunakan sebagai input model — variabel tersebut hanya digunakan untuk **validasi eksternal** *post-hoc* guna mengevaluasi apakah kelompok yang terbentuk berkorelasi dengan beban stunting aktual.
-
----
-
-## Fitur Input Model
-
-Model FCM dibangun dari enam fitur berikut (dalam skala z-score):
-
-| Fitur (Z-Score) | Deskripsi |
-|---|---|
-| `maternal_age_risk_z` | % ibu dengan usia risiko (&lt;21 atau &gt;40 tahun) |
-| `low_knowledge_z` | % ibu dengan pengetahuan gizi rendah |
-| `water_no_or_unimproved_z` | % RT tanpa akses / akses air minum tidak layak |
-| `water_limited_z` | % RT dengan akses air minum terbatas |
-| `sanitation_babs_z` | % RT buang air besar sembarangan (BABS) |
-| `sanitation_unimproved_z` | % RT dengan sanitasi tidak layak |
-
----
-
-## Struktur Direktori
-
-```
+```text
 pkk-stunting-fcm-clustering/
 ├── data/
-│   ├── raw/                        # Data mentah SSGI 2024 (CSV)
-│   ├── interim/                    # Data sementara hasil integrasi awal
-│   └── processed/                  # Data bersih & terstandarisasi siap model
-├── notebooks/                      # Notebook visualisasi dan eksplorasi
-│   ├── 01_harmonize_province_names.ipynb
-│   ├── 02_plot_cluster_map.ipynb
-│   ├── 03_plot_membership_certainty_map.ipynb
-│   ├── 04_plot_centroid_heatmap_and_validity.ipynb
-│   ├── 05_export_tables.ipynb
-│   └── preprocessing_pipeline.ipynb
-├── src/                            # Pipeline utama Python
+│   ├── raw/                 # CSV mentah
+│   ├── interim/             # hasil harmonisasi antara
+│   ├── processed/           # matriks model dan profil risiko
+│   └── external/            # GeoJSON batas provinsi
+├── notebooks/               # eksplorasi; bukan dependency wajib pipeline
+├── outputs/
+│   ├── model/               # hasil eksperimen FCM dan model terpilih
+│   ├── analysis/            # interpretasi klaster dan validasi eksternal
+│   ├── figures/             # grafik dan alias output lama
+│   ├── maps/                # peta PNG/PDF publikasi
+│   └── tables/              # tabel laporan dari workflow lama
+├── src/
 │   ├── preprocessing.py
 │   ├── 04_fcm_model.py
-│   └── 05_validation_robustness_analysis.py
-├── outputs/
-│   ├── model/                      # Artefak model (centroid, membership, params)
-│   ├── analysis/                   # Hasil analisis validasi
-│   └── figures/                    # Visualisasi (peta, heatmap, grafik)
+│   ├── 05_validation_robustness_analysis.py
+│   ├── 06_spatial_mapping.py
+│   └── 07_visualization.py
+├── tests/
+├── run_pipeline.py
 ├── requirements.txt
 └── README.md
 ```
 
----
+## Input dan Fitur FCM
 
-## Alur Menjalankan Proyek
+File input utama FCM:
 
-Jalankan tahap-tahap berikut **secara berurutan**. Setiap tahap bergantung pada output tahap sebelumnya.
-
-### Prasyarat
-
-```bash
-pip install -r requirements.txt
+```text
+data/processed/fcm_model_matrix_zscore.csv
 ```
 
----
+Enam fitur FCM:
 
-### Tahap 1 — Preprocessing Data (`src/preprocessing.py`)
-
-Mengintegrasikan data mentah SSGI 2024 dari berbagai tabel (usia ibu, pengetahuan gizi, akses air, sanitasi, prevalensi stunting). Melakukan harmonisasi nama provinsi, pengecekan kualitas data (missing value, outlier IQR & Z-score), dan standardisasi Z-score pada fitur FCM.
-
-```bash
-python src/preprocessing.py
-```
-
-**Input:** File CSV di `data/raw/`
-
-| File Output | Deskripsi |
+| Fitur | Makna |
 |---|---|
-| `data/interim/family_stunting_indicators.csv` | Indikator keluarga gabungan pra-merge |
-| `data/processed/fcm_risk_profile_2024.csv` | Profil risiko lengkap 36 provinsi (skala asli %) |
-| `data/processed/fcm_model_matrix_zscore.csv` | Matriks fitur FCM (skala Z-score, input model) |
-| `data/processed/correlation_matrix.png` | Heatmap korelasi Pearson antar fitur |
+| `maternal_age_risk_z` | risiko usia ibu hamil |
+| `low_knowledge_z` | rendahnya pengetahuan stunting |
+| `water_no_or_unimproved_z` | tanpa akses / air minum tidak layak |
+| `water_limited_z` | akses air minum terbatas |
+| `sanitation_babs_z` | BABS |
+| `sanitation_unimproved_z` | sanitasi tidak layak |
 
----
+Prevalensi stunting berada di:
 
-### Tahap 2 — Eksperimen Fuzzy C-Means (`src/04_fcm_model.py`)
-
-Menjalankan grid search FCM pada kombinasi jumlah klaster `c ∈ {2, 3, 4, 5}` dan *fuzziness exponent* `m ∈ {1.5, 1.75, 2.0, 2.25, 2.5}`, masing-masing dengan **20 random seed** untuk mengevaluasi stabilitas. Konfigurasi terbaik dipilih menggunakan **composite average rank** dari sembilan indikator validitas dan stabilitas.
-
-```bash
-python src/04_fcm_model.py
+```text
+data/processed/fcm_risk_profile_2024.csv
 ```
 
-**Input:** `data/processed/fcm_model_matrix_zscore.csv`
+Kolom `stunting_prevalence_pct` hanya dipakai setelah klaster terbentuk untuk validasi eksternal. Ia bukan input model FCM.
 
-| File Output | Deskripsi |
-|---|---|
-| `outputs/model/fcm_experiment_results.csv` | Hasil lengkap seluruh kombinasi `c`, `m`, dan seed |
-| `outputs/model/best_fcm_parameters.json` | Konfigurasi terpilih + ringkasan validitas & stabilitas |
-| `outputs/model/cluster_centroids_standardized.csv` | Koordinat centroid final (Z-score) |
-| `outputs/model/cluster_membership.csv` | Derajat keanggotaan fuzzy tiap provinsi |
+## Pemilihan Model
 
----
+`src/04_fcm_model.py` menjalankan FCM untuk kombinasi:
 
-### Tahap 3 — Analisis Validasi (`src/05_validation_robustness_analysis.py`)
-
-Menginterpretasi centroid klaster, menghitung skor per dimensi (keluarga, air, sanitasi), serta melakukan validasi eksternal menggunakan prevalensi stunting yang sebelumnya dieksklusi dari input model.
-
-```bash
-python src/05_validation_robustness_analysis.py
+```text
+c = 2, 3, 4, 5
+m = 1.5, 1.75, 2.0, 2.25, 2.5
+seed = 0..19
 ```
 
-**Input:** Output model dari Tahap 2 + `data/processed/fcm_risk_profile_2024.csv`
+Ranking tidak lagi memakai semua metrik sebagai suara independen. Metrik dipisahkan menjadi kelompok:
 
-| File Output | Deskripsi |
+| Kelompok | Metrik |
 |---|---|
-| `outputs/analysis/cluster_profiles.csv` | Profil klaster: skor dimensi, label, jumlah provinsi |
-| `outputs/analysis/dominant_factors.csv` | Centroid + faktor/dimensi dominan tiap klaster |
-| `outputs/analysis/province_membership_analysis.csv` | Keanggotaan fuzzy + label klaster + status kepastian tiap provinsi |
-| `outputs/analysis/ambiguous_provinces.csv` | Provinsi dengan status keanggotaan ambigu/transisi |
-| `outputs/analysis/external_validation.csv` | Statistik prevalensi stunting per klaster (validasi eksternal) |
+| Validitas struktur | Xie-Beni, minimum centroid distance |
+| Stabilitas | mean pairwise ARI, membership change, centroid variation |
+| Kualitas fuzzy | Modified Partition Coefficient, Partition Entropy |
+| Diagnostik | convergence rate, centroid collision, empty crisp cluster |
 
----
+Partition Coefficient tetap disimpan sebagai diagnostik, tetapi tidak dihitung sebagai bukti independen penuh bersama MPC dan PE. Ini mengurangi bias ke solusi yang terlalu crisp.
 
-### Tahap 4 — Visualisasi (Jupyter Notebooks)
+Pipeline juga menyimpan sensitivity ranking:
 
-Setelah ketiga skrip Python dijalankan, buka Notebook berikut di folder `notebooks/` untuk menghasilkan visualisasi:
-
-| Notebook | Visualisasi yang Dihasilkan | Output |
-|---|---|---|
-| `02_plot_cluster_map.ipynb` | Peta choropleth klaster 36 provinsi | `outputs/figures/peta_klaster_provinsi.png` |
-| `03_plot_membership_certainty_map.ipynb` | Peta tingkat kepastian keanggotaan *fuzzy* | `outputs/figures/peta_kepastian_membership.png` |
-| `04_plot_centroid_heatmap_and_validity.ipynb` | Heatmap profil centroid + grafik validitas model | `outputs/figures/heatmap_centroid.png`, `outputs/figures/grafik_indeks_validitas.png` |
-| `05_export_tables.ipynb` | Tabel ringkasan untuk laporan penelitian | — |
-
----
-
-## Hasil dan Temuan
-
-### Konfigurasi Model Terpilih
-
-| Parameter | Nilai |
-|---|---|
-| Jumlah klaster (`c`) | **2** |
-| *Fuzziness exponent* (`m`) | **1.5** |
-| *Representative seed* | 13 |
-| Jumlah inisialisasi | 20 |
-| *Convergence rate* | 100% (20/20 seed konvergen) |
-| *Composite rank score* | **2.11** (terbaik dari semua kombinasi) |
-
-### Indeks Validitas Klaster Terpilih
-
-| Indeks | Nilai | Interpretasi |
-|---|---|---|
-| Partition Coefficient (PC) | **0.8064** | Mendekati 1 → keanggotaan tegas |
-| Modified PC (MPC) | **0.6129** | Menunjukkan partisi yang baik |
-| Partition Entropy (PE) | **0.3109** | Mendekati 0 → ketidakpastian rendah |
-| Xie-Beni Index (XB) | **0.5658** | Klaster kompak dan terpisah |
-| Mean Pairwise ARI | **1.000** | Sempurna — identik di semua 20 seed |
-| Min. Centroid Distance | **6.526** | Dua klaster terkemuka |
-
-### Profil Centroid Klaster (Z-Score)
-
-| Klaster | Usia Ibu Risiko | Penget. Rendah | Air Tidak Layak | Air Terbatas | BABS | Sanitasi Tidak Layak |
-|---|---|---|---|---|---|---|
-| Klaster 1 (Risiko Lebih Rendah) | −0.64 | −0.04 | −0.41 | −0.53 | −0.03 | −0.47 |
-| Klaster 2 (Risiko Lebih Tinggi) | +0.91 | +0.16 | +0.60 | +0.79 | −0.02 | +0.69 |
-
-### Ringkasan Profil Klaster
-
-| Klaster | Label | Jumlah Provinsi | Dimensi Dominan | Mean Membership |
-|---|---|---|---|---|
-| 1 | Profil faktor risiko relatif lebih rendah | **23** | Sanitasi | 0.861 |
-| 2 | Profil faktor risiko relatif lebih tinggi | **13** | Air Minum | 0.867 |
-
-### Validasi Eksternal — Prevalensi Stunting per Klaster
-
-> Prevalensi stunting **tidak digunakan sebagai input model**, namun perbedaan antar klaster di bawah ini mengkonfirmasi validitas hasil klasterisasi secara substantif.
-
-| Klaster | Label | N Provinsi | Rata-rata | Median | Min | Max | Std Dev |
-|---|---|---|---|---|---|---|---|
-| 1 | Profil risiko lebih rendah | 23 | **19.60%** | 18.8% | 8.6% | 29.8% | 4.84% |
-| 2 | Profil risiko lebih tinggi | 13 | **26.97%** | 26.1% | 20.8% | 37.0% | 4.83% |
-
-**Selisih rata-rata prevalensi stunting antar klaster: ~7.4 poin persentase.**
-
-### Keanggotaan Provinsi per Klaster
-
-**Klaster 1 — Profil Faktor Risiko Relatif Lebih Rendah (23 provinsi)**
-
-| Provinsi | Max Membership | Status |
-|---|---|---|
-| SULAWESI SELATAN | 0.502 | Ambigu tinggi |
-| PAPUA | 0.508 | Ambigu tinggi |
-| KALIMANTAN UTARA | 0.659 | Transisi moderat |
-| JAWA TENGAH | 0.666 | Transisi moderat |
-| SUMATERA BARAT | 0.673 | Transisi moderat |
-| KALIMANTAN SELATAN | 0.711 | Transisi moderat |
-| BANGKA BELITUNG | 0.767 | Keanggotaan kuat |
-| NUSA TENGGARA BARAT | 0.774 | Keanggotaan kuat |
-| JAWA BARAT | 0.818 | Keanggotaan kuat |
-| BALI | 0.943 | Keanggotaan kuat |
-| KEPULAUAN RIAU | 0.967 | Keanggotaan kuat |
-| DI YOGYAKARTA | 0.967 | Keanggotaan kuat |
-| DKI JAKARTA | 0.971 | Keanggotaan kuat |
-| BENGKULU | 0.975 | Keanggotaan kuat |
-| LAMPUNG | 0.976 | Keanggotaan kuat |
-| ACEH | 0.986 | Keanggotaan kuat |
-| SUMATERA SELATAN | 0.990 | Keanggotaan kuat |
-| JAWA TIMUR | 0.990 | Keanggotaan kuat |
-| SUMATERA UTARA | 0.991 | Keanggotaan kuat |
-| KALIMANTAN TIMUR | 0.991 | Keanggotaan kuat |
-| BANTEN | 0.994 | Keanggotaan kuat |
-| RIAU | 0.994 | Keanggotaan kuat |
-| JAMBI | 0.999 | Keanggotaan kuat |
-
-**Klaster 2 — Profil Faktor Risiko Relatif Lebih Tinggi (13 provinsi)**
-
-| Provinsi | Max Membership | Status |
-|---|---|---|
-| SULAWESI UTARA | 0.559 | Ambigu tinggi |
-| KALIMANTAN TENGAH | 0.789 | Keanggotaan kuat |
-| NUSA TENGGARA TIMUR | 0.800 | Keanggotaan kuat |
-| MALUKU | 0.833 | Keanggotaan kuat |
-| PAPUA SELATAN | 0.840 | Keanggotaan kuat |
-| SULAWESI TENGGARA | 0.874 | Keanggotaan kuat |
-| SULAWESI TENGAH | 0.894 | Keanggotaan kuat |
-| KALIMANTAN BARAT | 0.905 | Keanggotaan kuat |
-| PAPUA BARAT | 0.918 | Keanggotaan kuat |
-| PAPUA BARAT DAYA | 0.938 | Keanggotaan kuat |
-| MALUKU UTARA | 0.958 | Keanggotaan kuat |
-| GORONTALO | 0.967 | Keanggotaan kuat |
-| SULAWESI BARAT | 0.993 | Keanggotaan kuat |
-
----
-
-## Persyaratan
-
-```bash
-pip install -r requirements.txt
+```text
+outputs/model/fcm_configuration_summary.csv
+outputs/model/fcm_ranking_sensitivity.csv
 ```
 
-Dependency utama: `pandas`, `numpy`, `scikit-fuzzy`, `scipy`, `scikit-learn`, `matplotlib`, `seaborn`, `geopandas` (untuk peta).
+Skema ranking:
 
----
+| Skema | Tujuan |
+|---|---|
+| `balanced` | keseimbangan struktur, stabilitas, fuzzy quality, diagnostik |
+| `validity_focused` | menekankan validitas struktur |
+| `stability_focused` | menekankan stabilitas antar seed |
+| `fuzzy_quality_focused` | menekankan kualitas partisi fuzzy |
+
+Konfigurasi terbaik dipilih dari ranking balanced dengan mempertimbangkan convergence, centroid yang tidak berhimpitan, tidak ada klaster kosong, dan konsistensi pada sensitivity ranking.
+
+## Interpretasi Centroid
+
+Nomor klaster bersifat arbitrer. Urutan risiko dibuat setelah centroid dianalisis melalui `overall_risk_score`, lalu disimpan sebagai `risk_rank`. Karena itu `cluster_1` tidak otomatis berarti risiko rendah atau tinggi.
+
+Pipeline membedakan tiga konsep indikator:
+
+| Kolom | Makna |
+|---|---|
+| `highest_centroid_indicator` | indikator dengan nilai centroid numerik tertinggi |
+| `most_elevated_risk_indicator` | indikator positif tertinggi; kosong secara substantif jika semua centroid tidak positif |
+| `most_distinguishing_indicator` | indikator dengan nilai absolut centroid terbesar, yaitu paling membedakan profil klaster |
+
+Untuk klaster dengan semua skor negatif, output tidak menyebut indikator tersebut sebagai risiko tinggi. Kolom `dominance_interpretation` memberi teks kontekstual, misalnya bahwa semua dimensi berada di bawah rata-rata dan satu dimensi hanya paling mendekati rata-rata.
+
+## Membership Dinamis
+
+`src/05_validation_robustness_analysis.py` mendeteksi kolom:
+
+```text
+membership_cluster_<nomor>
+```
+
+Deteksi dilakukan berdasarkan nomor klaster, bukan urutan alfabet. Untuk setiap provinsi, pipeline memvalidasi nilai membership `[0, 1]`, jumlah membership mendekati 1, lalu menghitung ulang:
+
+```text
+maximum_membership
+second_highest_membership
+membership_margin
+crisp_cluster
+membership_status
+```
+
+Analisis ini bekerja untuk `c=2` sampai `c=5`. Kolom lama tetap dipertahankan selama masih valid.
+
+## Label Klaster
+
+Label dibuat setelah skor risiko dihitung:
+
+| c | Label |
+|---|---|
+| 2 | lebih rendah, lebih tinggi |
+| 3 | rendah, sedang, tinggi |
+| 4 | rendah, menengah bawah, menengah atas, tinggi |
+| 5 | sangat rendah, rendah, sedang, tinggi, sangat tinggi |
+
+Jika skor dua klaster sangat dekat, label diberi konteks dimensi dominan agar tidak menyesatkan.
+
+## Visualisasi dan Pemetaan
+
+Notebook tetap ada untuk eksplorasi, tetapi pipeline final tidak bergantung pada notebook.
+
+Script produksi:
+
+```text
+src/06_spatial_mapping.py
+src/07_visualization.py
+```
+
+Output baru:
+
+```text
+outputs/maps/fcm_cluster_map.png
+outputs/maps/fcm_cluster_map.pdf
+outputs/maps/membership_certainty_map.png
+outputs/maps/membership_certainty_map.pdf
+outputs/figures/fcm_validity_plot.png
+outputs/figures/centroid_heatmap.png
+```
+
+Alias output lama juga tetap dibuat:
+
+```text
+outputs/figures/peta_klaster_provinsi.png
+outputs/figures/peta_kepastian_membership.png
+outputs/figures/grafik_indeks_validitas.png
+outputs/figures/heatmap_centroid.png
+```
+
+File spasial yang dibutuhkan:
+
+```text
+data/external/indonesia_38_provinces.geojson
+```
+
+Jika file spasial atau dependency pemetaan tidak tersedia, gunakan `--skip-mapping`. Pipeline tidak membuat data spasial palsu.
+
+## Cara Menjalankan
+
+Instal dependency:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+Jalankan seluruh pipeline:
+
+```bash
+python3 run_pipeline.py
+```
+
+Lewati pemetaan:
+
+```bash
+python3 run_pipeline.py --skip-mapping
+```
+
+Gunakan input FCM tertentu:
+
+```bash
+python3 run_pipeline.py --input data/processed/fcm_model_matrix_zscore.csv
+```
+
+Jalankan tahap satu per satu:
+
+```bash
+python3 src/preprocessing.py
+python3 src/04_fcm_model.py
+python3 src/05_validation_robustness_analysis.py
+python3 src/07_visualization.py
+python3 src/06_spatial_mapping.py
+```
+
+## Output Utama
+
+Model:
+
+```text
+outputs/model/fcm_experiment_results.csv
+outputs/model/fcm_configuration_summary.csv
+outputs/model/fcm_ranking_sensitivity.csv
+outputs/model/best_fcm_parameters.json
+outputs/model/cluster_centroids_standardized.csv
+outputs/model/cluster_membership.csv
+```
+
+Analisis:
+
+```text
+outputs/analysis/province_membership_analysis.csv
+outputs/analysis/ambiguous_provinces.csv
+outputs/analysis/cluster_profiles.csv
+outputs/analysis/dominant_factors.csv
+outputs/analysis/external_validation.csv
+```
+
+## Test
+
+Jalankan seluruh test:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+Test mencakup:
+
+1. metrik FCM lama;
+2. deteksi membership dinamis untuk `c=2..5`;
+3. indikator dominan pada centroid positif, negatif, dan tie;
+4. ranking dan sensitivity analysis;
+5. validasi eksternal dinamis;
+6. kontrak pipeline dan schema output.
 
 ## Catatan Metodologi
 
-- **Nomor klaster bersifat arbitrer.** Label "risiko lebih tinggi" dan "risiko lebih rendah" diberikan berdasarkan analisis centroid pasca-clustering, bukan urutan numerik FCM.
-- **Prevalensi stunting tidak masuk sebagai fitur model.** Variabel ini sepenuhnya diisolasi dan hanya digunakan untuk validasi eksternal *post-hoc*.
-- **Interpretasi keanggotaan fuzzy:** Provinsi dengan `maximum_membership < 0.60` atau `membership_margin < 0.20` dikategorikan sebagai **Ambigu tinggi**; nilai `0.60–0.75` sebagai **Transisi moderat**; di atas `0.75` sebagai **Keanggotaan kuat**.
-- **Stabilitas sempurna:** Nilai *pairwise ARI = 1.0* menunjukkan bahwa ke-20 inisialisasi random seed menghasilkan pembagian klaster yang identik, menjamin reprodusibilitas hasil.
+Analisis ini bersifat ekologis pada level provinsi. Klaster menunjukkan kemiripan profil faktor risiko, bukan hubungan sebab-akibat individual. Prevalensi stunting digunakan sebagai validasi eksternal post-hoc, bukan ground truth dan bukan target optimasi. Pola prevalensi tidak dipaksa monoton terhadap `overall_risk_score`; apabila tidak searah, pipeline melaporkannya apa adanya.
+
+Interpretasi label klaster harus merujuk pada centroid, `risk_rank`, dan `cluster_label`. Nomor klaster tidak memiliki makna substantif sebelum diberi interpretasi.

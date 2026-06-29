@@ -20,6 +20,8 @@ INPUT_PATH = PROJECT_ROOT / "data" / "processed" / "fcm_model_matrix_zscore.csv"
 OUTPUT_DIR = PROJECT_ROOT / "outputs" / "model"
 
 EXPERIMENT_RESULTS_PATH = OUTPUT_DIR / "fcm_experiment_results.csv"
+CONFIGURATION_SUMMARY_PATH = OUTPUT_DIR / "fcm_configuration_summary.csv"
+RANKING_SENSITIVITY_PATH = OUTPUT_DIR / "fcm_ranking_sensitivity.csv"
 BEST_PARAMETERS_PATH = OUTPUT_DIR / "best_fcm_parameters.json"
 CENTROIDS_PATH = OUTPUT_DIR / "cluster_centroids_standardized.csv"
 MEMBERSHIP_PATH = OUTPUT_DIR / "cluster_membership.csv"
@@ -44,6 +46,33 @@ ERROR_TOLERANCE = 1e-5
 MAX_ITERATIONS = 1000
 EPSILON = 1e-12
 MIN_CENTROID_DISTANCE_EPS = 1e-10
+
+RANKING_SCHEMES: dict[str, dict[str, float]] = {
+    "balanced": {
+        "structure": 0.40,
+        "stability": 0.30,
+        "fuzzy_quality": 0.20,
+        "diagnostic": 0.10,
+    },
+    "validity_focused": {
+        "structure": 0.55,
+        "stability": 0.20,
+        "fuzzy_quality": 0.15,
+        "diagnostic": 0.10,
+    },
+    "stability_focused": {
+        "structure": 0.25,
+        "stability": 0.50,
+        "fuzzy_quality": 0.15,
+        "diagnostic": 0.10,
+    },
+    "fuzzy_quality_focused": {
+        "structure": 0.30,
+        "stability": 0.20,
+        "fuzzy_quality": 0.40,
+        "diagnostic": 0.10,
+    },
+}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -99,8 +128,11 @@ class ConfigurationSummary:
     centroid_variation: float
     mean_pairwise_ari: float
     mean_membership_change: float
+    minimum_crisp_cluster_size: int
+    empty_crisp_clusters: int
     aligned_runs: list[FCMRunResult] = field(default_factory=list)
     composite_rank_score: float | None = None
+    selection_consistency: str | None = None
 
 
 def load_and_validate_data(
@@ -329,6 +361,16 @@ def _mean_membership_change(aligned_runs: list[FCMRunResult]) -> float:
     return float(np.mean(changes))
 
 
+def _minimum_crisp_cluster_size(aligned_runs: list[FCMRunResult]) -> int:
+    if not aligned_runs:
+        return 0
+    minimum_sizes = []
+    for run in aligned_runs:
+        counts = np.bincount(run.crisp_cluster, minlength=run.c)
+        minimum_sizes.append(int(np.min(counts)))
+    return int(min(minimum_sizes))
+
+
 def _mean_and_std(values: list[float]) -> tuple[float, float]:
     """Return mean/std, preserving non-finite penalties without NumPy warnings."""
     array = np.asarray(values, dtype=float)
@@ -348,6 +390,7 @@ def evaluate_stability(results: dict[tuple[int, float], list[FCMRunResult]]) -> 
             np.mean([np.linalg.norm(run.centroids - mean_centroids) for run in aligned_runs])
         )
         mean_xb, std_xb = _mean_and_std([run.xie_beni for run in runs])
+        min_cluster_size = _minimum_crisp_cluster_size(aligned_runs)
 
         summaries.append(
             ConfigurationSummary(
@@ -377,15 +420,17 @@ def evaluate_stability(results: dict[tuple[int, float], list[FCMRunResult]]) -> 
                 centroid_variation=centroid_variation,
                 mean_pairwise_ari=_mean_pairwise_ari(aligned_runs),
                 mean_membership_change=_mean_membership_change(aligned_runs),
+                minimum_crisp_cluster_size=min_cluster_size,
+                empty_crisp_clusters=int(min_cluster_size == 0),
                 aligned_runs=aligned_runs,
             )
         )
     return summaries
 
 
-def rank_fcm_configurations(summaries: list[ConfigurationSummary]) -> pd.DataFrame:
-    """Rank configurations using validity, stability, and convergence criteria."""
-    df = pd.DataFrame(
+def configuration_summaries_to_frame(summaries: list[ConfigurationSummary]) -> pd.DataFrame:
+    """Build one-row-per-configuration diagnostics for ranking and reporting."""
+    return pd.DataFrame(
         [
             {
                 "c": summary.c,
@@ -399,52 +444,184 @@ def rank_fcm_configurations(summaries: list[ConfigurationSummary]) -> pd.DataFra
                 "centroid_variation": summary.centroid_variation,
                 "convergence_rate": summary.convergence_rate,
                 "mean_minimum_centroid_distance": summary.mean_minimum_centroid_distance,
+                "minimum_centroid_distance": summary.mean_minimum_centroid_distance,
+                "minimum_crisp_cluster_size": summary.minimum_crisp_cluster_size,
+                "empty_crisp_clusters": summary.empty_crisp_clusters,
             }
             for summary in summaries
         ]
     )
 
-    df["rank_xie_beni"] = df["mean_xie_beni"].rank(method="min", ascending=True)
-    df["rank_pc"] = df["mean_partition_coefficient"].rank(method="min", ascending=False)
-    df["rank_mpc"] = df["mean_modified_partition_coefficient"].rank(method="min", ascending=False)
-    df["rank_pe"] = df["mean_partition_entropy"].rank(method="min", ascending=True)
-    df["rank_ari"] = df["mean_pairwise_ari"].rank(method="min", ascending=False)
-    df["rank_membership_change"] = df["mean_membership_change"].rank(method="min", ascending=True)
-    df["rank_centroid_variation"] = df["centroid_variation"].rank(method="min", ascending=True)
-    df["rank_convergence"] = df["convergence_rate"].rank(method="min", ascending=False)
-    df["rank_centroid_distance"] = df["mean_minimum_centroid_distance"].rank(method="min", ascending=False)
 
-    rank_columns = [
-        "rank_xie_beni",
-        "rank_pc",
-        "rank_mpc",
-        "rank_pe",
-        "rank_ari",
-        "rank_membership_change",
-        "rank_centroid_variation",
-        "rank_convergence",
-        "rank_centroid_distance",
-    ]
-    df["composite_rank_score"] = df[rank_columns].mean(axis=1)
+def _rank_to_unit_score(series: pd.Series, ascending: bool) -> pd.Series:
+    """Return 0 for the best rank and 1 for the worst rank."""
+    ranks = series.rank(method="min", ascending=ascending)
+    if len(ranks) <= 1:
+        return pd.Series(0.0, index=series.index)
+    return (ranks - 1) / (len(ranks) - 1)
+
+
+def _add_metric_scores(df: pd.DataFrame) -> pd.DataFrame:
+    scored = df.copy()
+    scored["score_xie_beni"] = _rank_to_unit_score(scored["mean_xie_beni"], ascending=True)
+    scored["score_centroid_distance"] = _rank_to_unit_score(
+        scored["mean_minimum_centroid_distance"], ascending=False
+    )
+    scored["score_mpc"] = _rank_to_unit_score(
+        scored["mean_modified_partition_coefficient"], ascending=False
+    )
+    scored["score_partition_entropy"] = _rank_to_unit_score(
+        scored["mean_partition_entropy"], ascending=True
+    )
+    scored["score_pairwise_ari"] = _rank_to_unit_score(scored["mean_pairwise_ari"], ascending=False)
+    scored["score_membership_change"] = _rank_to_unit_score(
+        scored["mean_membership_change"], ascending=True
+    )
+    scored["score_centroid_variation"] = _rank_to_unit_score(
+        scored["centroid_variation"], ascending=True
+    )
+    scored["score_convergence"] = _rank_to_unit_score(scored["convergence_rate"], ascending=False)
+    scored["score_empty_clusters"] = scored["empty_crisp_clusters"].astype(float)
+    scored["score_centroid_collision"] = (
+        scored["mean_minimum_centroid_distance"] <= MIN_CENTROID_DISTANCE_EPS
+    ).astype(float)
+    scored["hard_diagnostic_penalty"] = (
+        (scored["convergence_rate"] < 1.0).astype(float)
+        + scored["score_empty_clusters"]
+        + scored["score_centroid_collision"]
+    )
+
+    scored["structure_score"] = scored[["score_xie_beni", "score_centroid_distance"]].mean(axis=1)
+    scored["fuzzy_quality_score"] = scored[["score_mpc", "score_partition_entropy"]].mean(axis=1)
+    scored["stability_score"] = scored[
+        ["score_pairwise_ari", "score_membership_change", "score_centroid_variation"]
+    ].mean(axis=1)
+    scored["diagnostic_score"] = scored[
+        ["score_convergence", "score_empty_clusters", "score_centroid_collision"]
+    ].mean(axis=1)
+    return scored
+
+
+def rank_fcm_configurations(
+    summaries: list[ConfigurationSummary],
+    scheme_name: str = "balanced",
+) -> pd.DataFrame:
+    """Rank configurations using grouped metrics to avoid double-counting fuzzy crispness."""
+    if scheme_name not in RANKING_SCHEMES:
+        raise ValueError(f"Unknown ranking scheme: {scheme_name}")
+
+    df = _add_metric_scores(configuration_summaries_to_frame(summaries))
+    weights = RANKING_SCHEMES[scheme_name]
+    df["composite_rank_score"] = (
+        weights["structure"] * df["structure_score"]
+        + weights["stability"] * df["stability_score"]
+        + weights["fuzzy_quality"] * df["fuzzy_quality_score"]
+        + weights["diagnostic"] * df["diagnostic_score"]
+        + df["hard_diagnostic_penalty"]
+    )
+
     ranked = df.sort_values(
-        ["composite_rank_score", "mean_pairwise_ari", "mean_xie_beni", "c"],
-        ascending=[True, False, True, True],
+        [
+            "composite_rank_score",
+            "diagnostic_score",
+            "structure_score",
+            "stability_score",
+            "mean_pairwise_ari",
+            "mean_xie_beni",
+            "c",
+            "m",
+        ],
+        ascending=[True, True, True, True, False, True, True, True],
     ).reset_index(drop=True)
     ranked["selection_order"] = np.arange(1, len(ranked) + 1)
+    ranked[f"rank_{scheme_name}"] = ranked["selection_order"]
     return ranked
 
 
+def build_ranking_sensitivity(summaries: list[ConfigurationSummary]) -> pd.DataFrame:
+    """Create ranking results for all weighting schemes."""
+    base = _add_metric_scores(configuration_summaries_to_frame(summaries))
+    rank_frames = []
+    for scheme_name in RANKING_SCHEMES:
+        ranked = rank_fcm_configurations(summaries, scheme_name)
+        rank_frames.append(ranked[["c", "m", f"rank_{scheme_name}", "composite_rank_score"]].rename(
+            columns={"composite_rank_score": f"score_{scheme_name}"}
+        ))
+
+    sensitivity = base
+    for ranks in rank_frames:
+        sensitivity = sensitivity.merge(ranks, on=["c", "m"], how="left")
+
+    rank_columns = [f"rank_{name}" for name in RANKING_SCHEMES]
+    sensitivity["selection_consistency_count"] = (sensitivity[rank_columns] <= 3).sum(axis=1)
+    sensitivity["selection_consistency"] = sensitivity["selection_consistency_count"].map(
+        lambda count: f"Top-3 in {int(count)} of {len(rank_columns)} weighting schemes"
+    )
+    return sensitivity.sort_values(["rank_balanced", "c", "m"]).reset_index(drop=True)
+
+
+def save_configuration_rankings(
+    summaries: list[ConfigurationSummary],
+    summary_path: Path = CONFIGURATION_SUMMARY_PATH,
+    sensitivity_path: Path = RANKING_SENSITIVITY_PATH,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Persist transparent configuration diagnostics and sensitivity rankings."""
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    sensitivity = build_ranking_sensitivity(summaries)
+    summary_columns = [
+        "c",
+        "m",
+        "mean_xie_beni",
+        "mean_partition_coefficient",
+        "mean_modified_partition_coefficient",
+        "mean_partition_entropy",
+        "mean_pairwise_ari",
+        "mean_membership_change",
+        "centroid_variation",
+        "convergence_rate",
+        "minimum_centroid_distance",
+        "minimum_crisp_cluster_size",
+        "empty_crisp_clusters",
+        "structure_score",
+        "stability_score",
+        "fuzzy_quality_score",
+        "diagnostic_score",
+        "rank_balanced",
+        "rank_validity_focused",
+        "rank_stability_focused",
+        "rank_fuzzy_quality_focused",
+        "selection_consistency",
+    ]
+    sensitivity.loc[:, summary_columns].to_csv(summary_path, index=False)
+    sensitivity.to_csv(sensitivity_path, index=False)
+    return sensitivity.loc[:, summary_columns], sensitivity
+
+
 def select_best_configuration(summaries: list[ConfigurationSummary]) -> ConfigurationSummary:
-    """Choose the best FCM configuration from composite ranking."""
-    ranking = rank_fcm_configurations(summaries)
+    """Choose the best FCM configuration from balanced grouped ranking."""
+    ranking = build_ranking_sensitivity(summaries)
     score_lookup = {
-        (int(row.c), float(row.m)): float(row.composite_rank_score)
+        (int(row.c), float(row.m)): float(row.score_balanced)
+        for row in ranking.itertuples(index=False)
+    }
+    consistency_lookup = {
+        (int(row.c), float(row.m)): str(row.selection_consistency)
         for row in ranking.itertuples(index=False)
     }
     for summary in summaries:
         summary.composite_rank_score = score_lookup[(summary.c, summary.m)]
+        summary.selection_consistency = consistency_lookup[(summary.c, summary.m)]
 
-    best_row = ranking.iloc[0]
+    best_row = ranking.sort_values(
+        [
+            "rank_balanced",
+            "empty_crisp_clusters",
+            "mean_minimum_centroid_distance",
+            "selection_consistency_count",
+            "mean_pairwise_ari",
+        ],
+        ascending=[True, True, False, False, False],
+    ).iloc[0]
     best = next(
         summary
         for summary in summaries
@@ -500,6 +677,8 @@ def _summary_to_dict(summary: ConfigurationSummary) -> dict[str, float | int]:
         "centroid_variation": summary.centroid_variation,
         "mean_pairwise_ari": summary.mean_pairwise_ari,
         "mean_membership_change": summary.mean_membership_change,
+        "minimum_crisp_cluster_size": summary.minimum_crisp_cluster_size,
+        "empty_crisp_clusters": summary.empty_crisp_clusters,
         "composite_rank_score": summary.composite_rank_score or float("nan"),
     }
 
@@ -550,7 +729,12 @@ def save_best_model_outputs(
     membership_df["crisp_cluster"] = np.argmax(representative.membership, axis=1) + 1
     membership_df.to_csv(MEMBERSHIP_PATH, index=False, float_format="%.6f")
 
-    ranking = rank_fcm_configurations(summaries).head(5).to_dict(orient="records")
+    configuration_summary, ranking_sensitivity = save_configuration_rankings(summaries)
+    ranking = ranking_sensitivity.sort_values("rank_balanced").head(5).to_dict(orient="records")
+    best_row = ranking_sensitivity[
+        (ranking_sensitivity["c"] == best_summary.c)
+        & (ranking_sensitivity["m"] == best_summary.m)
+    ].iloc[0]
     best_parameters = {
         "best_c": best_summary.c,
         "best_m": best_summary.m,
@@ -559,14 +743,42 @@ def save_best_model_outputs(
         "max_iterations": MAX_ITERATIONS,
         "number_of_initializations": len(RANDOM_SEEDS),
         "feature_columns": FEATURE_COLUMNS,
-        "selection_method": (
-            "Composite average rank over Xie-Beni, PC, MPC, PE, pairwise ARI, "
-            "membership change, centroid variation, convergence rate, and centroid separation."
-        ),
+        "selection_method": "Grouped weighted ranking with sensitivity analysis across weighting schemes.",
+        "metric_groups": {
+            "structure": ["Xie-Beni (lower is better)", "minimum centroid distance (higher is better)"],
+            "fuzzy_quality": [
+                "Modified Partition Coefficient (higher is better)",
+                "Partition Entropy (lower is better)",
+                "Partition Coefficient retained as a diagnostic, not a full independent vote.",
+            ],
+            "stability": [
+                "mean pairwise ARI (higher is better)",
+                "mean membership change (lower is better)",
+                "centroid variation (lower is better)",
+            ],
+            "diagnostic": [
+                "convergence rate",
+                "empty crisp clusters",
+                "near-colliding centroids",
+            ],
+        },
+        "weighting_scheme": RANKING_SCHEMES["balanced"],
+        "ranking_sensitivity": {
+            scheme: {
+                "rank": int(best_row[f"rank_{scheme}"]),
+                "score": float(best_row[f"score_{scheme}"]),
+            }
+            for scheme in RANKING_SCHEMES
+        },
+        "selection_consistency": best_summary.selection_consistency,
         "selection_rationale": (
-            f"Selected c={best_summary.c}, m={best_summary.m} because it had the lowest "
-            f"composite rank score ({best_summary.composite_rank_score:.3f}) while balancing "
-            "validity, stability across seeds, convergence, and centroid separation. "
+            f"Selected c={best_summary.c}, m={best_summary.m} from the balanced grouped ranking "
+            f"(score {best_summary.composite_rank_score:.3f}). The selected configuration "
+            f"had convergence rate {best_summary.convergence_rate:.3f}, minimum crisp cluster "
+            f"size {best_summary.minimum_crisp_cluster_size}, mean pairwise ARI "
+            f"{best_summary.mean_pairwise_ari:.3f}, and no centroid collision. "
+            "PC, MPC, and PE were not counted as three independent full-weight votes; "
+            "MPC and PE form the fuzzy-quality group while PC remains diagnostic. "
             "Cluster numbers remain arbitrary and are not substantive risk labels."
         ),
         "validity_summary": _summary_to_dict(best_summary),
@@ -576,28 +788,41 @@ def save_best_model_outputs(
             "centroid_variation": best_summary.centroid_variation,
             "convergence_rate": best_summary.convergence_rate,
         },
+        "alternative_top_configurations": ranking,
         "top_candidate_configurations": ranking,
     }
     with BEST_PARAMETERS_PATH.open("w", encoding="utf-8") as f:
         json.dump(best_parameters, f, indent=2)
 
-    for path in [EXPERIMENT_RESULTS_PATH, BEST_PARAMETERS_PATH, CENTROIDS_PATH, MEMBERSHIP_PATH]:
+    for path in [
+        EXPERIMENT_RESULTS_PATH,
+        CONFIGURATION_SUMMARY_PATH,
+        RANKING_SENSITIVITY_PATH,
+        BEST_PARAMETERS_PATH,
+        CENTROIDS_PATH,
+        MEMBERSHIP_PATH,
+    ]:
         if not path.exists():
             raise FileNotFoundError(f"Expected output file was not created: {path}")
 
     return centroid_df, membership_df
 
 
+def run_model_pipeline(input_path: Path = INPUT_PATH) -> ConfigurationSummary:
+    """Run FCM experiments, rank configurations, and persist model artifacts."""
+    input_df, x = load_and_validate_data(input_path=input_path)
+    results = run_fcm_experiments(x)
+    summaries = evaluate_stability(results)
+    best_summary = select_best_configuration(summaries)
+    save_experiment_results(results)
+    save_best_model_outputs(input_df, summaries, best_summary)
+    return best_summary
+
+
 def main() -> int:
     """CLI entry point for reproducible FCM modeling experiments."""
     try:
-        input_df, x = load_and_validate_data()
-        results = run_fcm_experiments(x)
-        summaries = evaluate_stability(results)
-        best_summary = select_best_configuration(summaries)
-        save_experiment_results(results)
-        save_best_model_outputs(input_df, summaries, best_summary)
-
+        best_summary = run_model_pipeline()
         print(f"Best number of clusters: {best_summary.c}")
         print(f"Best fuzziness exponent: {best_summary.m}")
         print(f"Representative seed: {best_summary.representative_seed}")
@@ -606,9 +831,16 @@ def main() -> int:
         print(f"Mean Modified Partition Coefficient: {best_summary.mean_modified_partition_coefficient:.6f}")
         print(f"Mean Partition Entropy: {best_summary.mean_partition_entropy:.6f}")
         print(f"Stability score: {best_summary.mean_pairwise_ari:.6f}")
-        print(f"Number of provinces: {len(input_df)}")
+        print(f"Selection consistency: {best_summary.selection_consistency}")
         print("Output files:")
-        for path in [EXPERIMENT_RESULTS_PATH, BEST_PARAMETERS_PATH, CENTROIDS_PATH, MEMBERSHIP_PATH]:
+        for path in [
+            EXPERIMENT_RESULTS_PATH,
+            CONFIGURATION_SUMMARY_PATH,
+            RANKING_SENSITIVITY_PATH,
+            BEST_PARAMETERS_PATH,
+            CENTROIDS_PATH,
+            MEMBERSHIP_PATH,
+        ]:
             print(f"- {path.relative_to(PROJECT_ROOT)}")
         return 0
     except Exception:

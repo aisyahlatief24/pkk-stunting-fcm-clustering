@@ -1,3 +1,3 @@
-cluster,cluster_label,number_of_provinces,mean_stunting_prevalence,median_stunting_prevalence,minimum_stunting_prevalence,maximum_stunting_prevalence,standard_deviation
-1,Profil faktor risiko relatif lebih rendah,23,19.59565217391304,18.8,8.6,29.8,4.838433091674276
-2,Profil faktor risiko relatif lebih tinggi,13,26.96923076923077,26.1,20.8,37.0,4.8272463881914796
+cluster,risk_rank,cluster_label,number_of_provinces,mean_stunting_prevalence,median_stunting_prevalence,minimum_stunting_prevalence,maximum_stunting_prevalence,standard_deviation,prevalence_trend_note
+1,1,Profil faktor risiko relatif lebih rendah,23,19.59565217391304,18.8,8.6,29.8,4.838433091674276,Rata-rata prevalensi stunting meningkat atau tetap searah dengan urutan skor risiko.
+2,2,Profil faktor risiko relatif lebih tinggi,13,26.96923076923077,26.1,20.8,37.0,4.82724638819148,Rata-rata prevalensi stunting meningkat atau tetap searah dengan urutan skor risiko.
